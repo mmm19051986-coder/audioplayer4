@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Audio Player Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+
+<style>
+body{
+  margin:0;
+  font-family:Inter,system-ui;
+  background:#0f1115;
+  color:#fff;
+}
+.app{
+  display:grid;
+  grid-template-columns:320px 1fr;
+  height:100vh;
+}
+.panel{
+  padding:16px;
+  background:#151821;
+  overflow:auto;
+}
+.panel h2{
+  margin-top:0;
+  font-size:16px;
+}
+.panel input,
+.panel textarea,
+.panel select,
+.panel button{
+  width:100%;
+  margin-bottom:10px;
+  padding:8px;
+  border-radius:8px;
+  border:1px solid #2a2f3a;
+  background:#0f1115;
+  color:#fff;
+}
+.panel button{
+  cursor:pointer;
+  background:#4da3ff;
+  border:none;
+}
+.preview{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:radial-gradient(circle at top,#1b2030,#0f1115);
+}
+iframe{
+  width:420px;
+  height:300px;
+  border:none;
+}
+textarea.code{
+  height:220px;
+  font-family:monospace;
+  color:#9f9;
+  background:#000;
+}
+label{
+  font-size:12px;
+  opacity:.8;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- SETTINGS -->
+  <div class="panel">
+    <h2>🎧 Audio Player Editor</h2>
+
+    <label>Язык</label>
+    <select id="lang">
+      <option value="ru">Русский</option>
+      <option value="en">English</option>
+    </select>
+
+    <label>Цвет фона</label>
+    <input type="color" id="bg" value="#1a1a1a">
+
+    <label>Акцент</label>
+    <input type="color" id="accent" value="#66ccff">
+
+    <label>Кнопки</label>
+    <input type="color" id="btn" value="#ffffff">
+
+    <label>Обложка (URL)</label>
+    <input id="cover" placeholder="https://...jpg">
+
+    <label>Аудио (raw-ссылки)</label>
+    <textarea id="tracks" placeholder="https://raw.githubusercontent.com/...mp3"></textarea>
+
+    <button onclick="updatePreview()">👁 Обновить предпросмотр</button>
+    <button onclick="generate()">📋 Получить код</button>
+
+    <label>Код для Genially</label>
+    <textarea class="code" id="out"></textarea>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview">
+    <iframe id="preview"></iframe>
+  </div>
+
+</div>
+
+<script>
+function buildPlayer(config){
+return `
+<div id="FX_AUDIO_PLAYER">
+<style>
+#FX_AUDIO_PLAYER{
+  font-family:Inter,Arial;
+  background:transparent;
+}
+.fx-player{
+  width:360px;
+  background:${config.bg};
+  color:#fff;
+  border-radius:18px;
+  padding:14px;
+}
+.fx-cover{
+  height:160px;
+  border-radius:12px;
+  background:url(${config.cover}) center/cover;
+}
+.fx-title{
+  margin:8px 0;
+  font-size:14px;
+  text-align:center;
+}
+.fx-progress{
+  height:6px;
+  background:rgba(255,255,255,.2);
+  border-radius:6px;
+  overflow:hidden;
+}
+.fx-progress span{
+  display:block;
+  height:100%;
+  width:0%;
+  background:${config.accent};
+}
+.fx-controls{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin-top:10px;
+}
+.fx-controls button{
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  border:none;
+  background:${config.btn};
+  color:#000;
+  cursor:pointer;
+}
+.fx-playlist{
+  display:none;
+  font-size:12px;
+  margin-top:6px;
+}
+.fx-playlist div{
+  cursor:pointer;
+  padding:3px;
+}
+.fx-playlist div.active{
+  color:${config.accent};
+}
+</style>
+
+<div class="fx-player">
+  <div class="fx-cover"></div>
+  <div class="fx-title">—</div>
+  <div class="fx-progress"><span></span></div>
+  <div class="fx-controls">
+    <button data-p="prev">⏮</button>
+    <button data-p="play">▶</button>
+    <button data-p="next">⏭</button>
+    <button data-p="list">📜</button>
+  </div>
+  <div class="fx-playlist"></div>
+</div>
+
+<script>
+(()=>{
+const tracks=${JSON.stringify(config.tracks)};
+let i=0;
+let audio=new Audio(tracks[0]);
+const root=document.currentScript.previousElementSibling;
+const title=root.querySelector('.fx-title');
+const bar=root.querySelector('.fx-progress span');
+const list=root.querySelector('.fx-playlist');
+
+function load(n){
+ i=n;
+ audio.src=tracks[i];
+ title.textContent=tracks[i].split('/').pop();
+ [...list.children].forEach((e,j)=>e.classList.toggle('active',j===i));
+}
+tracks.forEach((t,n)=>{
+ let d=document.createElement('div');
+ d.textContent=t.split('/').pop();
+ d.onclick=()=>{load(n);audio.play();}
+ list.appendChild(d);
+});
+audio.ontimeupdate=()=>bar.style.width=(audio.currentTime/audio.duration*100||0)+'%';
+
+root.onclick=e=>{
+ if(!e.target.dataset.p) return;
+ if(e.target.dataset.p==='play') audio.paused?audio.play():audio.pause();
+ if(e.target.dataset.p==='next'){load((i+1)%tracks.length);audio.play();}
+ if(e.target.dataset.p==='prev'){load((i-1+tracks.length)%tracks.length);audio.play();}
+ if(e.target.dataset.p==='list') list.style.display=list.style.display?'':'block';
+};
+load(0);
+})();
+<\/script>
+</div>`;
+}
+
+function updatePreview(){
+ const cfg=getConfig();
+ preview.srcdoc=buildPlayer(cfg);
+}
+
+function generate(){
+ const cfg=getConfig();
+ out.value=buildPlayer(cfg);
+}
+
+function getConfig(){
+ return{
+   bg:bg.value,
+   accent:accent.value,
+   btn:btn.value,
+   cover:cover.value||'',
+   tracks:tracks.value.split('\n').filter(Boolean),
+   lang:lang.value
+ };
+}
+</script>
+</body>
+</html>
